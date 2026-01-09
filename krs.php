@@ -103,11 +103,11 @@ $total_sks = $database->getTotalSKS($filter_tahun, $filter_prodi);
                         <h4 class="mb-0">Sistem Update Kurikulum dan KRS</h4>
                         <div>
                             <a href="template.php" class="btn btn-light btn-sm me-2">
-                                <i class="fas fa-download"></i> Template
+                                <i class="fas fa-download"></i> Import Kurikulum
                             </a>
-                            <a href="import.php" class="btn btn-warning btn-sm me-2">
+                            <!-- <a href="import.php" class="btn btn-warning btn-sm me-2">
                                 <i class="fas fa-upload"></i> Import
-                            </a>
+                            </a> -->
                             <a href="process_krs.php" class="btn btn-success btn-sm">
                                 <i class="fas fa-cogs"></i> Generate KRS
                             </a>

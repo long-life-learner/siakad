@@ -34,14 +34,21 @@ class Database
     }
 
     // Fungsi untuk mendapatkan program studi unik
-    public function getProgramStudi()
+    public function getKelas()
     {
-        $query = "SELECT DISTINCT prodi FROM kurikulum ORDER BY prodi";
+        $query = "SELECT DISTINCT kelas FROM mahasiswa ORDER BY kelas";
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getProgramStudi()
+    {
+        $query = "SELECT DISTINCT programstudi as prodi FROM mahasiswa ORDER BY programstudi";
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
     // Fungsi untuk menghitung total SKS
     public function getTotalSKS($tahun = null, $prodi = null)
     {

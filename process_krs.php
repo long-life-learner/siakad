@@ -18,15 +18,17 @@ $stats = [
 // Get options for filters
 $tahun_options = $database->getTahunAkademik();
 $prodi_options = $database->getProgramStudi();
+$kelas_options = $database->getKelas();
 
 // Get filter values from POST or set defaults
 $filter_tahun = isset($_POST['filter_tahun']) ? $_POST['filter_tahun'] : '';
 $filter_prodi = isset($_POST['filter_prodi']) ? $_POST['filter_prodi'] : '';
+$filter_kelas = isset($_POST['filter_kelas']) ? $_POST['filter_kelas'] : '';
 $filter_nim = isset($_POST['filter_nim']) ? $_POST['filter_nim'] : '';
 $process_type = isset($_POST['process_type']) ? $_POST['process_type'] : 'all';
 
 // Fungsi untuk generate KRS dengan berbagai filter
-function generateKRS($db, $filter_tahun, $filter_prodi, $filter_nim, $process_type, &$stats)
+function generateKRS($db, $filter_tahun, $filter_prodi, $filter_kelas, $filter_nim, $process_type, &$stats)
 {
     // Jika tidak ada tahun, ambil yang terbaru
     if (empty($filter_tahun)) {
@@ -51,6 +53,11 @@ function generateKRS($db, $filter_tahun, $filter_prodi, $filter_nim, $process_ty
         if (!empty($filter_prodi) && $process_type != 'single') {
             $mahasiswa_query .= " AND programstudi = :prodi";
             $params[':prodi'] = $filter_prodi;
+        }
+
+        if (!empty($filter_kelas) && $process_type != 'single') {
+            $mahasiswa_query .= " AND kelas = :kelas";
+            $params[':kelas'] = $filter_kelas;
         }
 
         if (!empty($filter_nim)) {
@@ -79,21 +86,25 @@ function generateKRS($db, $filter_tahun, $filter_prodi, $filter_nim, $process_ty
             // Query matakuliah berdasarkan filter
             $mk_query = "SELECT * FROM kurikulum 
                         WHERE tahun = :tahun 
-                        AND sem = :semester";
+                        AND sem = :semester
+                        AND TRIM(UPPER(prodi)) = :prodi";
             $mk_params = [
                 ':tahun' => $filter_tahun,
-                ':semester' => $semester_mhs
+                ':semester' => $semester_mhs,
+                ':prodi' => trim(strtoupper($mhs['kelas']))
             ];
 
             // Tambah filter prodi jika dipilih
-            if (!empty($filter_prodi) && $process_type != 'single') {
-                $mk_query .= " AND TRIM(UPPER(prodi)) =  :prodi";
-                $mk_params[':prodi'] =  trim(strtoupper($filter_prodi));
-            } elseif ($process_type == 'single') {
-                // Jika single student, gunakan prodi dari mahasiswa
-                $mk_query .= " AND TRIM(UPPER(prodi)) =  :prodi";
-                $mk_params[':prodi'] =  trim(strtoupper($mhs['kelas']));
-            }
+            // if (!empty($filter_prodi) && $process_type != 'single') {
+            //     $mk_query .= " AND TRIM(UPPER(prodi)) =  :prodi";
+            //     $mk_params[':prodi'] =  trim(strtoupper($filter_prodi));
+            // } 
+
+            // elseif ($process_type == 'single') {
+            // Jika single student, gunakan prodi dari mahasiswa
+            // $mk_query .= " AND TRIM(UPPER(prodi)) =  :prodi";
+            // $mk_params[':prodi'] =  trim(strtoupper($mhs['kelas']));
+            // }
 
             // $mk_query .= " AND (namamk NOT LIKE '%Praktik%' OR namamk LIKE '%Praktik Kerja Lapangan%')";
 
@@ -120,8 +131,6 @@ function generateKRS($db, $filter_tahun, $filter_prodi, $filter_nim, $process_ty
                 $check_stmt->bindParam(':tahunakademik', $filter_tahun);
                 $check_stmt->execute();
 
-
-
                 if ($check_stmt->rowCount() > 0) {
                     // Update existing KRS
                     $query = "UPDATE nilaiakademik SET
@@ -139,8 +148,7 @@ function generateKRS($db, $filter_tahun, $filter_prodi, $filter_nim, $process_ty
                 } else {
                     // Insert new KRS
                     $query = "INSERT INTO nilaiakademik 
-                             (nim, nama, kodemk, namamk, sks, tahunakademik, prodi, dosen, kelas, 
-                              uts, uas, tugas, kuis, sikap, akhir, huruf, angka, status, statusmk, status_konfirmasi) 
+                             (nim, nama, kodemk, namamk, sks, tahunakademik, prodi, dosen, kelas, uts, uas, tugas, kuis, sikap, akhir, huruf, angka, status, statusmk, status_konfirmasi) 
                              VALUES 
                              (:nim, :nama, :kodemk, :namamk, :sks, :tahunakademik, :prodi, :dosen, :kelas, '', '', '', '', '0', '0', '', '0', '', '', 'Menunggu Dikirim')";
                     $operation = 'INSERT';
@@ -153,7 +161,7 @@ function generateKRS($db, $filter_tahun, $filter_prodi, $filter_nim, $process_ty
                 $stmt->bindParam(':namamk', $mk['namamk']);
                 $stmt->bindParam(':sks', $mk['sks']);
                 $stmt->bindParam(':tahunakademik', $filter_tahun);
-                $stmt->bindParam(':prodi', $mk['prodi']);
+                $stmt->bindParam(':prodi', $mhs['programstudi']);
                 $stmt->bindParam(':dosen', $mk['dosen']);
                 $stmt->bindParam(':kelas', $mhs['kelas']);
 
@@ -213,7 +221,7 @@ function calculateSemester($tahun_masuk, $tahun_akademik)
 // Handle form submission for batch processing
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['process_krs'])) {
-        $result = generateKRS($db, $filter_tahun, $filter_prodi, $filter_nim, $process_type, $stats);
+        $result = generateKRS($db, $filter_tahun, $filter_prodi, $filter_kelas, $filter_nim, $process_type, $stats);
 
         if ($result == "success") {
             $message = "Batch processing KRS selesai!";
@@ -340,6 +348,18 @@ $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC);
                                         </select>
                                     </div>
                                     <div class="col-md-3">
+                                        <label class="form-label">Kelas</label>
+                                        <select name="filter_kelas" class="form-select select2">
+                                            <option value="">Semua Kelas</option>
+                                            <?php foreach ($kelas_options as $kelas): ?>
+                                                <option value="<?php echo $kelas['kelas']; ?>"
+                                                    <?php echo ($filter_kelas == $kelas['kelas']) ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($kelas['kelas']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
                                         <label class="form-label">NIM (Opsional)</label>
                                         <input type="text" name="filter_nim" class="form-control"
                                             value="<?php echo htmlspecialchars($filter_nim); ?>"
@@ -351,6 +371,7 @@ $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC);
                                             <option value="all" <?php echo ($process_type == 'all') ? 'selected' : ''; ?>>Semua Mahasiswa</option>
                                             <option value="single" <?php echo ($process_type == 'single') ? 'selected' : ''; ?>>Per NIM</option>
                                             <option value="prodi" <?php echo ($process_type == 'prodi') ? 'selected' : ''; ?>>Per Prodi</option>
+                                            <option value="kelas" <?php echo ($process_type == 'kelas') ? 'selected' : ''; ?>>Per Kelas</option>
                                         </select>
                                     </div>
                                 </div>

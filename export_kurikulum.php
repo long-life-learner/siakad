@@ -43,27 +43,56 @@ foreach ($params as $key => $value) {
 $stmt->execute();
 $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Set headers for Excel download
-header('Content-Type: application/vnd.ms-excel');
-header('Content-Disposition: attachment;filename="kurikulum_' . date('YmdHis') . '.xlsx"');
-header('Cache-Control: max-age=0');
+require_once __DIR__ . '/vendor/autoload.php';
 
-// Create Excel content
-$output = "No\tKode MK\tNama MK\tProgram Studi\tDosen\tSemester\tSKS\tTahun Akademik\tSurat Tugas\n";
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
+$spreadsheet = new Spreadsheet();
+$sheet = $spreadsheet->getActiveSheet();
+
+$headers = [
+    'A' => 'No',
+    'B' => 'Kode MK',
+    'C' => 'Nama MK',
+    'D' => 'Program Studi',
+    'E' => 'Dosen',
+    'F' => 'Semester',
+    'G' => 'SKS',
+    'H' => 'Tahun Akademik',
+    'I' => 'Surat Tugas',
+];
+
+foreach ($headers as $col => $text) {
+    $sheet->setCellValue($col . '1', $text);
+}
+
+$rowNum = 2;
 $no = 1;
 foreach ($data as $row) {
-    $output .= $no . "\t";
-    $output .= $row['kodemk'] . "\t";
-    $output .= $row['namamk'] . "\t";
-    $output .= $row['prodi'] . "\t";
-    $output .= $row['dosen'] . "\t";
-    $output .= $row['sem'] . "\t";
-    $output .= $row['sks'] . "\t";
-    $output .= $row['tahun'] . "\t";
-    $output .= $row['surattugas'] . "\n";
+    $sheet->setCellValue('A' . $rowNum, $no);
+    $sheet->setCellValue('B' . $rowNum, $row['kodemk']);
+    $sheet->setCellValue('C' . $rowNum, $row['namamk']);
+    $sheet->setCellValue('D' . $rowNum, $row['prodi']);
+    $sheet->setCellValue('E' . $rowNum, $row['dosen']);
+    $sheet->setCellValue('F' . $rowNum, $row['sem']);
+    $sheet->setCellValue('G' . $rowNum, $row['sks']);
+    $sheet->setCellValue('H' . $rowNum, $row['tahun']);
+    $sheet->setCellValue('I' . $rowNum, $row['surattugas']);
+    $rowNum++;
     $no++;
 }
 
-echo $output;
+// Auto-size columns
+foreach (range('A', 'I') as $col) {
+    $sheet->getColumnDimension($col)->setAutoSize(true);
+}
+
+// Stream XLSX to browser
+header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+header('Content-Disposition: attachment;filename="kurikulum_' . date('YmdHis') . '.xlsx"');
+header('Cache-Control: max-age=0');
+
+$writer = new Xlsx($spreadsheet);
+$writer->save('php://output');
 exit;
