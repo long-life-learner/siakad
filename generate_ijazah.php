@@ -18,8 +18,8 @@ $tahun = $_GET['tahun'] ?? '';
 $nim   = $_GET['nim'] ?? '';
 $nama  = $_GET['nama'] ?? '';
 
-$lulus = $_GET['lulus'] ?? '2025-10-15';
-$cetak = $_GET['cetak'] ?? '2025-10-15';
+$lulus = $_GET['tgl_lulus'];
+$cetak = $_GET['tgl_cetak'];
 
 function indoTanggal($tgl)
 {

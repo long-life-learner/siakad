@@ -112,9 +112,13 @@ function generateKRS($db, $filter_tahun, $filter_prodi, $filter_kelas, $filter_n
             foreach ($mk_params as $key => $value) {
                 $mk_stmt->bindValue($key, $value);
             }
+
             $mk_stmt->execute();
             $matakuliah = $mk_stmt->fetchAll(PDO::FETCH_ASSOC);
-            // var_dump($matakuliah);
+            var_dump($mk_stmt, $mk_params);
+            var_dump($matakuliah);
+
+            die();
             // die();
             $stats['total_matakuliah'] += count($matakuliah);
 
@@ -634,6 +638,7 @@ $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC);
                         <ul>
                             <li><strong>Tahun Akademik:</strong> <span id="confirmTahun"></span></li>
                             <li><strong>Program Studi:</strong> <span id="confirmProdi"></span></li>
+                            <li><strong>Kelas:</strong> <span id="confirmKelas"></span></li>
                             <li><strong>NIM:</strong> <span id="confirmNIM"></span></li>
                             <li><strong>Tipe Proses:</strong> <span id="confirmType"></span></li>
                         </ul>
@@ -665,6 +670,7 @@ $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC);
             const prodi = $('select[name="filter_prodi"]').val();
             const nim = $('input[name="filter_nim"]').val();
             const type = $('select[name="process_type"]').val();
+            const kelas = $('select[name="filter_kelas"]').val();
 
             if (!tahun) {
                 Swal.fire({
@@ -679,8 +685,8 @@ $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC);
             $('#confirmTahun').text(tahun || 'Semua');
             $('#confirmProdi').text(prodi || 'Semua');
             $('#confirmNIM').text(nim || 'Semua');
-            $('#confirmType').text(type === 'all' ? 'Semua Mahasiswa' :
-                type === 'single' ? 'Per NIM' : 'Per Prodi');
+            $('#confirmKelas').text(kelas || 'Semua');
+            $('#confirmType').text(type || 'all');
 
             // Show modal
             $('#confirmModal').modal('show');
