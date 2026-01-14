@@ -64,13 +64,13 @@ if ($mode === "massal") {
     $namaFile .= $tahun . "_" . $prodi;
 } else if ($mode === "nim") {
     $query = "SELECT a.nim, nama, programstudi, tempatlahir, tanggallahir, status, tahunmasuk, a.nik as nik , a.nomor_ijazah as nomor_ijazah
-              FROM mahasiswa JOIN after_graduate as a ON mahasiswa.nim = a.nim WHERE mahasiswa.nim=? LIMIT 1";
+              FROM mahasiswa JOIN after_graduate as a ON mahasiswa.nim = a.nim WHERE mahasiswa.nim=? AND status = 'Lulus'  LIMIT 1";
     $params = [$nim];
     $types  = "s";
     $namaFile .= $nim;
 } else if ($mode === "nama") {
     $query = "SELECT a.nim, nama, programstudi, tempatlahir, tanggallahir, status, tahunmasuk, a.nik as nik , a.nomor_ijazah as nomor_ijazah
-              FROM mahasiswa JOIN after_graduate AS a  ON mahasiswa.nim = a.nim WHERE nama LIKE ? ORDER BY nama ASC";
+              FROM mahasiswa JOIN after_graduate AS a  ON mahasiswa.nim = a.nim WHERE nama LIKE ? AND status = 'Lulus' ORDER BY nama ASC";
     $params = ["%" . $nama . "%"];
     $types  = "s";
     $namaFile .= preg_replace('/\s+/', '_', $nama);

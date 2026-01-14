@@ -36,7 +36,7 @@ class Database
     // Fungsi untuk mendapatkan program studi unik
     public function getKelas()
     {
-        $query = "SELECT DISTINCT kelas FROM mahasiswa ORDER BY kelas";
+        $query = "SELECT DISTINCT kelas FROM mahasiswa where kelas LIKE '%TEKNIK%' OR kelas LIKE '%TEKNOLOGI%' ORDER BY kelas";
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

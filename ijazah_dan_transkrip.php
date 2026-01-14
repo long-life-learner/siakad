@@ -56,11 +56,11 @@ $prodi =  $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
             <!-- Tabs -->
             <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
+                <li class="nav-item"><a class="nav-link" id="import-tab" data-bs-toggle="tab" href="#import">Langkah 1 : Import Data</a></li>
                 <li class="nav-item"><a class="nav-link active" id="massal-tab" data-bs-toggle="tab" href="#massal">Cetak Massal Ijazah</a></li>
                 <li class="nav-item"><a class="nav-link" id="individu-tab" data-bs-toggle="tab" href="#individu">Cetak Ijazah</a></li>
                 <li class="nav-item"><a class="nav-link" id="transkrip-massal-tab" data-bs-toggle="tab" href="#transkrip-massal">Cetak Massal Transkrip</a></li>
                 <li class="nav-item"><a class="nav-link" id="transkrip-tab" data-bs-toggle="tab" href="#transkrip">Cetak Transkrip</a></li>
-                <li class="nav-item"><a class="nav-link" id="import-tab" data-bs-toggle="tab" href="#import">Import Data</a></li>
 
             </ul>
 

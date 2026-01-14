@@ -50,9 +50,18 @@ function generateKRS($db, $filter_tahun, $filter_prodi, $filter_kelas, $filter_n
         $mahasiswa_query = "SELECT nim, nama, kelas, programstudi, tahunmasuk FROM mahasiswa WHERE status = 'Aktif'";
         $params = [];
 
+        // if (!empty($filter_prodi) && $process_type != 'single') {
+        //     $mahasiswa_query .= " AND programstudi = :prodi";
+        //     $mahasiswa_query .= " AND LEFT(nim,  )"
+        //     $params[':prodi'] = $filter_prodi;
+        // }
         if (!empty($filter_prodi) && $process_type != 'single') {
-            $mahasiswa_query .= " AND programstudi = :prodi";
-            $params[':prodi'] = $filter_prodi;
+            // Ambil kata terakhir dari filter_prodi (mengatasi multi-kata)
+            $parts = preg_split('/\s+/', trim($filter_prodi));
+            $lastProdi = strtoupper(end($parts));
+
+            $mahasiswa_query .= " AND UPPER(TRIM(SUBSTRING_INDEX(programstudi, ' ', -1))) = :prodi";
+            $params[':prodi'] = $lastProdi;
         }
 
         if (!empty($filter_kelas) && $process_type != 'single') {
@@ -115,10 +124,10 @@ function generateKRS($db, $filter_tahun, $filter_prodi, $filter_kelas, $filter_n
 
             $mk_stmt->execute();
             $matakuliah = $mk_stmt->fetchAll(PDO::FETCH_ASSOC);
-            var_dump($mk_stmt, $mk_params);
-            var_dump($matakuliah);
 
-            die();
+            // var_dump($mk_stmt);
+            // var_dump($mk_params);
+            // var_dump($matakuliah);
             // die();
             $stats['total_matakuliah'] += count($matakuliah);
 
@@ -209,17 +218,42 @@ function generateKRS($db, $filter_tahun, $filter_prodi, $filter_kelas, $filter_n
 }
 
 // Fungsi untuk menghitung semester
+// function calculateSemester($tahun_masuk, $tahun_akademik)
+// {
+//     // Logika sederhana: asumsi 2 semester per tahun
+//     $tahun_masuk_int = intval(substr($tahun_masuk, 0, 4));
+//     $tahun_akademik_int = intval(substr($tahun_akademik, 0, 4));
+//     $semester_akademik = substr($tahun_akademik, -1);
+
+//     $selisih_tahun = $tahun_akademik_int - $tahun_masuk_int;
+//     $semester = ($selisih_tahun * 2) + ($semester_akademik == '2' ? 0 : -1);
+
+//     return max(1, $semester); // Minimal semester 1
+// }
 function calculateSemester($tahun_masuk, $tahun_akademik)
 {
-    // Logika sederhana: asumsi 2 semester per tahun
-    $tahun_masuk_int = intval(substr($tahun_masuk, 0, 4));
-    $tahun_akademik_int = intval(substr($tahun_akademik, 0, 4));
-    $semester_akademik = substr($tahun_akademik, -1);
+    if (preg_match('/\d{4}/', $tahun_masuk, $m)) {
+        $tahun_masuk_int = intval($m[0]);
+    } else {
+        $tahun_masuk_int = intval(substr($tahun_masuk, 0, 4));
+    }
+
+    if (preg_match('/\d{4}/', $tahun_akademik, $n)) {
+        $tahun_akademik_int = intval($n[0]);
+    } else {
+        $tahun_akademik_int = intval(substr($tahun_akademik, 0, 4));
+    }
+
+    if (preg_match('/([12])\s*$/', trim($tahun_akademik), $s)) {
+        $semester_akademik = intval($s[1]);
+    } else {
+        $semester_akademik = 1;
+    }
 
     $selisih_tahun = $tahun_akademik_int - $tahun_masuk_int;
-    $semester = ($selisih_tahun * 2) + ($semester_akademik == '2' ? 0 : -1);
+    $semester = ($selisih_tahun * 2) + $semester_akademik;
 
-    return max(1, $semester); // Minimal semester 1
+    return max(1, $semester);
 }
 
 // Handle form submission for batch processing
@@ -244,6 +278,63 @@ $summary_query = "SELECT
 $summary_stmt = $db->prepare($summary_query);
 $summary_stmt->execute();
 $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC);
+
+// --- KRS Check: summary per kelas dan preview 1 mahasiswa per kelas ---
+$krs_check_tahun = $filter_tahun ?: (isset($tahun_options[0]['tahun']) ? $tahun_options[0]['tahun'] : null);
+$krs_by_class = [];
+
+if ($krs_check_tahun) {
+    $krs_summary_sql = "
+        SELECT kelas, nim, nama, SUM(COALESCE(sks,0)) AS total_sks, COUNT(*) AS total_mk
+        FROM nilaiakademik
+        WHERE tahunakademik = :tahun
+        GROUP BY kelas, nim, nama
+        ORDER BY kelas, total_sks DESC, nama
+    ";
+    $krs_summary_stmt = $db->prepare($krs_summary_sql);
+    $krs_summary_stmt->bindValue(':tahun', $krs_check_tahun);
+    $krs_summary_stmt->execute();
+    $rows = $krs_summary_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($rows as $r) {
+        $kelas = $r['kelas'] ?: 'N/A';
+        if (!isset($krs_by_class[$kelas])) {
+            $krs_by_class[$kelas] = [
+                'students' => [],
+                'sample_student' => null,
+                'sample_courses' => []
+            ];
+        }
+        $krs_by_class[$kelas]['students'][] = [
+            'nim' => $r['nim'],
+            'nama' => $r['nama'],
+            'total_sks' => (int)$r['total_sks'],
+            'total_mk' => (int)$r['total_mk']
+        ];
+    }
+
+    // Ambil preview mata kuliah untuk 1 mahasiswa per kelas (pilih mahasiswa pertama)
+    $course_sql = "
+        SELECT kodemk, namamk, sks
+        FROM nilaiakademik
+        WHERE tahunakademik = :tahun AND nim = :nim
+        ORDER BY kodemk
+    ";
+    $course_stmt = $db->prepare($course_sql);
+
+    foreach ($krs_by_class as $kelas => &$info) {
+        if (!empty($info['students'])) {
+            $sample = $info['students'][0];
+            $info['sample_student'] = $sample;
+            $course_stmt->bindValue(':tahun', $krs_check_tahun);
+            $course_stmt->bindValue(':nim', $sample['nim']);
+            $course_stmt->execute();
+            $info['sample_courses'] = $course_stmt->fetchAll(PDO::FETCH_ASSOC);
+            $course_stmt->closeCursor();
+        }
+    }
+    unset($info);
+}
 ?>
 
 <!DOCTYPE html>
@@ -399,7 +490,13 @@ $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC);
                         <!-- Tabs for different process types -->
                         <ul class="nav nav-tabs" id="processTab" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="batch-tab" data-bs-toggle="tab"
+                                <button class="nav-link active" id="cekkrs-tab" data-bs-toggle="tab"
+                                    data-bs-target="#cekkrs" type="button" role="tab">
+                                    <i class="fas fa-check"></i> Cek KRS
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link " id="batch-tab" data-bs-toggle="tab"
                                     data-bs-target="#batch" type="button" role="tab">
                                     <i class="fas fa-cogs"></i> Batch Process
                                 </button>
@@ -419,8 +516,80 @@ $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC);
                         </ul>
 
                         <div class="tab-content" id="processTabContent">
+
+                            <!-- Cek KRS Tab -->
+                            <div class="tab-pane fade show active" id="cekkrs" role="tabpanel">
+                                <h5>Check KRS — Tahun: <?php echo htmlspecialchars($krs_check_tahun ?: '-'); ?></h5>
+
+                                <?php if (empty($krs_by_class)): ?>
+                                    <div class="alert alert-info">Tidak ada data KRS untuk tahun akademik ini.</div>
+                                <?php else: ?>
+                                    <?php foreach ($krs_by_class as $kelas => $info): ?>
+                                        <div class="card mb-3">
+                                            <div class="card-header">
+                                                <strong>Kelas:</strong> <?php echo htmlspecialchars($kelas); ?>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-7">
+                                                        <h6>Daftar Mahasiswa & Total SKS</h6>
+                                                        <div class="table-responsive">
+                                                            <table class="table table-sm table-bordered">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>NIM</th>
+                                                                        <th>Nama</th>
+                                                                        <th>Total SKS</th>
+                                                                        <th>Jumlah MK</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <?php foreach ($info['students'] as $s): ?>
+                                                                        <tr>
+                                                                            <td><?php echo htmlspecialchars($s['nim']); ?></td>
+                                                                            <td><?php echo htmlspecialchars($s['nama']); ?></td>
+                                                                            <td><?php echo (int)$s['total_sks']; ?></td>
+                                                                            <td><?php echo (int)$s['total_mk']; ?></td>
+                                                                        </tr>
+                                                                    <?php endforeach; ?>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-5">
+                                                        <h6>Preview Mahasiswa (<?php echo htmlspecialchars($info['sample_student']['nim'] ?? '-'); ?>)</h6>
+                                                        <?php if (!empty($info['sample_student'])): ?>
+                                                            <p><strong><?php echo htmlspecialchars($info['sample_student']['nama']); ?></strong></p>
+                                                            <table class="table table-sm table-bordered">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Kode</th>
+                                                                        <th>Matakuliah</th>
+                                                                        <th>SKS</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <?php foreach ($info['sample_courses'] as $c): ?>
+                                                                        <tr>
+                                                                            <td><?php echo htmlspecialchars($c['kodemk']); ?></td>
+                                                                            <td><?php echo htmlspecialchars($c['namamk']); ?></td>
+                                                                            <td><?php echo (int)$c['sks']; ?></td>
+                                                                        </tr>
+                                                                    <?php endforeach; ?>
+                                                                </tbody>
+                                                            </table>
+                                                        <?php else: ?>
+                                                            <div class="alert alert-secondary">Tidak ada mahasiswa contoh untuk kelas ini.</div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
                             <!-- Batch Process Tab -->
-                            <div class="tab-pane fade show active" id="batch" role="tabpanel">
+                            <div class="tab-pane fade " id="batch" role="tabpanel">
                                 <div class="card process-card">
                                     <div class="card-header bg-danger text-white">
                                         <h5 class="mb-0">Batch Process KRS</h5>

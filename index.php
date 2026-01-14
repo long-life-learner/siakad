@@ -28,11 +28,23 @@ try {
 $counts = [];
 $counts_by_angkatan = [];
 try {
-    $stmt = $db->query("SELECT tahunmasuk, programstudi, trim(jeniskelamin) as jeniskelamin, COUNT(*) as cnt FROM mahasiswa GROUP BY tahunmasuk, programstudi, jeniskelamin ORDER BY tahunmasuk DESC, programstudi");
+    $stmt = $db->query("SELECT tahunmasuk, programstudi, jeniskelamin, COUNT(*) as cnt FROM mahasiswa GROUP BY tahunmasuk, programstudi, jeniskelamin ORDER BY tahunmasuk DESC, programstudi");
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $angk = $row['tahunmasuk'] ?? 'Unknown';
         $jur = $row['programstudi'] ?? 'Unknown';
-        $jk  = trim($row['jeniskelamin']) ?? 'Unknown';
+
+        // Normalisasi jeniskelamin: trim + samakan variasi ke dua label standar
+        $raw_jk = isset($row['jeniskelamin']) ? trim($row['jeniskelamin']) : '';
+        $jk_lower = strtolower($raw_jk);
+        if ($jk_lower === '' || $jk_lower === null) {
+            $jk = 'Unknown';
+        } elseif (preg_match('/\b(laki|lk|pria|laki2|laki-?laki|male)\b/', $jk_lower)) {
+            $jk = 'Laki-laki';
+        } elseif (preg_match('/\b(wanita|perempuan|perempuann|female|cewek)\b/', $jk_lower)) {
+            $jk = 'Perempuan';
+        } else {
+            $jk = ucwords($jk_lower);
+        }
 
         if (!isset($counts[$angk])) {
             $counts[$angk] = [];
@@ -58,7 +70,6 @@ try {
         $counts_by_angkatan[$angk]['by_gender'][$jk] += (int)$row['cnt'];
     }
 } catch (Exception $e) {
-    // Jika query gagal, biarkan $counts tetap kosong
     die('Error: ' . $e->getMessage());
 }
 ?>
@@ -121,7 +132,7 @@ try {
 
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <div>Quick Actions</div>
+                <div>Menu</div>
                 <div class="text-end"><small class="text-muted">Akses cepat ke fitur penting</small></div>
             </div>
             <div class="card-body">
@@ -143,68 +154,310 @@ try {
         </div>
 
         <?php if (!empty($counts)): ?>
-            <div class="card mt-4">
-                <div class="card-header">Ringkasan Mahasiswa per Angkatan</div>
-                <div class="card-body">
-                    <div class="table-responsive mb-3">
-                        <table class="table table-sm table-striped align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Angkatan</th>
-                                    <th>Total</th>
-                                    <th>Per Jenis Kelamin</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($counts_by_angkatan as $angk => $data): ?>
-                                    <tr>
-                                        <td><strong><?php echo htmlspecialchars($angk); ?></strong></td>
-                                        <td><strong><?php echo htmlspecialchars($data['total']); ?></strong></td>
-                                        <td>
-                                            <?php foreach ($data['by_gender'] as $jk => $v): ?>
-                                                <span class="badge bg-primary me-1"><?php echo htmlspecialchars($jk); ?>: <?php echo htmlspecialchars($v); ?></span>
-                                            <?php endforeach; ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+
+            <?php
+            // Persiapkan data untuk Chart.js
+            $angkatan_labels = array_values(array_keys($counts_by_angkatan));
+            $angkatan_totals = [];
+            foreach ($angkatan_labels as $angk) {
+                $angkatan_totals[] = (int)$counts_by_angkatan[$angk]['total'];
+            }
+
+            // Kumpulkan semua gender yang ada
+            $gender_set = [];
+            foreach ($counts_by_angkatan as $angk => $data) {
+                foreach ($data['by_gender'] as $g => $v) {
+                    $gender_set[trim($g)] = true;
+                }
+            }
+            $genders = array_values(array_keys($gender_set));
+
+            // Siapkan data per gender per angkatan
+            $gender_data = [];
+            foreach ($genders as $g) {
+                $row = [];
+                foreach ($angkatan_labels as $angk) {
+                    $row[] = isset($counts_by_angkatan[$angk]['by_gender'][$g]) ? (int)$counts_by_angkatan[$angk]['by_gender'][$g] : 0;
+                }
+                $gender_data[$g] = $row;
+            }
+
+            // Siapkan data jurusan per angkatan dan juga breakdown gender per jurusan per angkatan
+            $jurusan_by_angkatan = [];
+            $jurusan_gender_by_angkatan = [];
+
+            foreach ($counts as $angk => $jurusans) {
+                $labels = [];
+                $data = [];
+                foreach ($jurusans as $jur => $d) {
+                    $labels[] = $jur;
+                    $data[] = (int)$d['total'];
+                }
+                $jurusan_by_angkatan[$angk] = ['labels' => $labels, 'data' => $data];
+
+                // gender counts aligned with $labels
+                $jurusan_gender_by_angkatan[$angk] = ['labels' => $labels, 'genders' => []];
+                foreach ($genders as $g) {
+                    $arr = [];
+                    foreach ($jurusans as $jur => $d) {
+                        $arr[] = isset($d['by_gender'][$g]) ? (int)$d['by_gender'][$g] : 0;
+                    }
+                    $jurusan_gender_by_angkatan[$angk]['genders'][$g] = $arr;
+                }
+            }
+            ?>
+
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Total Mahasiswa per Angkatan</div>
+                        <div class="card-body">
+                            <canvas id="chartAngkatan" height="220"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Distribusi Jenis Kelamin per Angkatan (Stacked)</div>
+                        <div class="card-body">
+                            <canvas id="chartGenderStacked" height="220"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="card mt-4">
-                <div class="card-header">Detail Mahasiswa per Angkatan &amp; Jurusan</div>
-                <div class="card-body">
-                    <?php foreach ($counts as $angk => $jurusans): ?>
-                        <h6 class="mb-2">Angkatan <?php echo htmlspecialchars($angk); ?></h6>
-                        <div class="table-responsive mb-3">
-                            <table class="table table-sm table-striped align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Jurusan</th>
-                                        <th>Total</th>
-                                        <th>Per Jenis Kelamin</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($jurusans as $jur => $data): ?>
-                                        <tr>
-                                            <td><?php echo htmlspecialchars($jur); ?></td>
-                                            <td><?php echo htmlspecialchars($data['total']); ?></td>
-                                            <td>
-                                                <?php foreach ($data['by_gender'] as $jk => $v): ?>
-                                                    <span class="badge bg-secondary me-1"><?php echo htmlspecialchars($jk); ?>: <?php echo htmlspecialchars($v); ?></span>
-                                                <?php endforeach; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>Detail Per Jurusan (Pilih Angkatan)</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <select id="selectAngkatan" class="form-select form-select-sm" style="width:220px;">
+                            <?php foreach ($angkatan_labels as $a): ?>
+                                <option value="<?php echo htmlspecialchars($a); ?>"><?php echo htmlspecialchars($a); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-check form-switch ms-2">
+                            <input class="form-check-input" type="checkbox" id="toggleGenderView">
+                            <label class="form-check-label" for="toggleGenderView" style="font-size:0.9rem;">Tampilkan per Gender</label>
                         </div>
-                    <?php endforeach; ?>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartJurusan" height="160"></canvas>
                 </div>
             </div>
+
+            <!-- Data untuk JS -->
+            <script>
+                const angkatanLabels = <?php echo json_encode($angkatan_labels, JSON_UNESCAPED_UNICODE); ?>;
+                const angkatanTotals = <?php echo json_encode($angkatan_totals); ?>;
+                const genders = <?php echo json_encode($genders, JSON_UNESCAPED_UNICODE); ?>;
+                const genderData = <?php echo json_encode($gender_data, JSON_UNESCAPED_UNICODE); ?>;
+                const jurusanByAngkatan = <?php echo json_encode($jurusan_by_angkatan, JSON_UNESCAPED_UNICODE); ?>;
+                const jurusanGenderByAngkatan = <?php echo json_encode($jurusan_gender_by_angkatan, JSON_UNESCAPED_UNICODE); ?>;
+            </script>
+
+            <!-- Chart.js CDN -->
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+            <script>
+                // const palette = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#6f42c1', '#fd7e14', '#20c997'];
+                const palette = ['#e74a3b', '#6f42c1', '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#fd7e14', '#20c997'];
+
+                // Chart Total per Angkatan
+                const ctxA = document.getElementById('chartAngkatan').getContext('2d');
+                new Chart(ctxA, {
+                    type: 'bar',
+                    data: {
+                        labels: angkatanLabels,
+                        datasets: [{
+                            label: 'Total Mahasiswa',
+                            data: angkatanTotals,
+                            backgroundColor: palette[0],
+                            borderColor: palette[0],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Jumlah Mahasiswa'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Angkatan'
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Stacked Chart per Gender per Angkatan
+                const ctxG = document.getElementById('chartGenderStacked').getContext('2d');
+                const genderDatasets = genders.map((g, idx) => ({
+                    label: g || 'Unknown',
+                    data: genderData[g] || [],
+                    backgroundColor: palette[(idx + 1) % palette.length],
+                    stack: 'Stack 0'
+                }));
+                new Chart(ctxG, {
+                    type: 'bar',
+                    data: {
+                        labels: angkatanLabels,
+                        datasets: genderDatasets
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                stacked: true,
+                                title: {
+                                    display: true,
+                                    text: 'Angkatan'
+                                }
+                            },
+                            y: {
+                                stacked: true,
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Jumlah Mahasiswa'
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Jurusan per Angkatan (dinamis) — dapat tampil total atau per gender (stacked)
+                const ctxJ = document.getElementById('chartJurusan').getContext('2d');
+                let jurusanChart = null;
+
+                function renderJurusanChart(angk, byGender = false) {
+                    const infoTotal = jurusanByAngkatan[angk] || {
+                        labels: [],
+                        data: []
+                    };
+                    const infoGender = jurusanGenderByAngkatan[angk] || {
+                        labels: [],
+                        genders: {}
+                    };
+
+                    if (!byGender) {
+                        const data = {
+                            labels: infoTotal.labels,
+                            datasets: [{
+                                label: 'Total Mahasiswa',
+                                data: infoTotal.data,
+                                backgroundColor: infoTotal.labels.map((_, i) => palette[i % palette.length])
+                            }]
+                        };
+                        const opts = {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Total'
+                                    }
+                                }
+                            }
+                        };
+
+                        if (jurusanChart) jurusanChart.destroy();
+                        jurusanChart = new Chart(ctxJ, {
+                            type: 'bar',
+                            data: data,
+                            options: opts
+                        });
+                    } else {
+                        // build datasets per gender
+                        const datasets = [];
+                        let idx = 0;
+                        for (const g of genders) {
+                            const d = infoGender.genders[g] || [];
+                            datasets.push({
+                                label: g || 'Unknown',
+                                data: d,
+                                backgroundColor: palette[idx % palette.length],
+                                stack: 'Stack 0'
+                            });
+                            idx++;
+                        }
+                        const data = {
+                            labels: infoGender.labels,
+                            datasets
+                        };
+                        const opts = {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    stacked: true
+                                },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Jumlah'
+                                    }
+                                }
+                            }
+                        };
+                        if (jurusanChart) jurusanChart.destroy();
+                        jurusanChart = new Chart(ctxJ, {
+                            type: 'bar',
+                            data: data,
+                            options: opts
+                        });
+                    }
+                }
+
+                // Init jurusan chart dengan angkatan pertama
+                if (angkatanLabels.length) {
+                    const first = angkatanLabels[0];
+                    renderJurusanChart(first, false);
+                    document.getElementById('selectAngkatan').value = first;
+                }
+
+                // Interaksi dropdown & toggle
+                const selectAng = document.getElementById('selectAngkatan');
+                const toggleGender = document.getElementById('toggleGenderView');
+
+                selectAng.addEventListener('change', function() {
+                    renderJurusanChart(this.value, toggleGender.checked);
+                });
+                toggleGender.addEventListener('change', function() {
+                    renderJurusanChart(selectAng.value, this.checked);
+                });
+            </script>
+
         <?php endif; ?>
 
         <!-- <div class="mt-4 text-muted small">Jika Anda ingin menambahkan fitur baru ke Dashboard, beri tahu saya fitur apa yang diinginkan.</div> -->
