@@ -37,7 +37,14 @@ if (empty($tahun) || empty($prodi) || empty($masuk) || empty($lulus) || empty($c
 // Create temp directory if not exists
 $tempDir = __DIR__ . '/temp_transkrip_' . date('Ymd_His');
 if (!file_exists($tempDir)) {
-    mkdir($tempDir, 0777, true);
+    // Coba dengan permission 0777
+    if (!@mkdir($tempDir, 0777, true)) {
+        // Jika gagal, coba dengan sys_temp_dir
+        $tempDir = sys_get_temp_dir() . '/temp_transkrip_' . date('Ymd_His');
+        if (!@mkdir($tempDir, 0777, true)) {
+            die("Gagal membuat direktori temporary!");
+        }
+    }
 }
 
 $prodiNum = '';
@@ -301,6 +308,7 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
 
     // Save to file
     $output = $dompdf->output();
+
     $filename = $tempDir . '/transkrip_' . $nim . '.pdf';
 
     if (file_put_contents($filename, $output)) {
