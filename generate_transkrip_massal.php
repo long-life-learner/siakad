@@ -348,31 +348,77 @@ foreach ($students as $index => $student) {
 echo "<br><hr>";
 echo "<h4>Ringkasan:</h4>";
 echo "Berhasil: $successCount transkrip<br>";
-echo "Gagal: $errorCount transkrip<br><br>";
 
+echo "Gagal: $errorCount transkrip<br><br>";
 // If no PDFs generated, show error and exit
 if (empty($pdfFiles)) {
     echo "<div style='color:red;'><strong>Tidak ada transkrip yang berhasil digenerate!</strong></div>";
 
-    // Clean up temp directory
+    // Clean up temp directory dengan force delete
     if (file_exists($tempDir)) {
-        array_map('unlink', glob("$tempDir/*"));
-        rmdir($tempDir);
+        deleteDirectoryForce($tempDir);
     }
 
     exit;
 }
 
+// Function untuk force delete directory
+function deleteDirectoryForce($dir)
+{
+    if (!file_exists($dir)) {
+        return true;
+    }
+
+    if (!is_dir($dir)) {
+        return @unlink($dir);
+    }
+
+    // Gunakan system command untuk Linux/Docker
+    if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+        $dir = str_replace('/', '\\', $dir);
+        exec("rd /s /q \"$dir\" 2>nul");
+    } else {
+        // Force delete dengan rm -rf
+        exec("rm -rf " . escapeshellarg($dir) . " 2>/dev/null");
+    }
+
+    return !file_exists($dir);
+}
+
+// Function untuk cleanup file individual
+function cleanupTempFiles($tempDir, $pdfFiles)
+{
+    // Hapus semua file individual terlebih dahulu
+    foreach ($pdfFiles as $file) {
+        if (file_exists($file)) {
+            // Coba unlock file jika terkunci
+            if (function_exists('flock')) {
+                if ($fp = @fopen($file, 'r')) {
+                    @flock($fp, LOCK_UN);
+                    @fclose($fp);
+                }
+            }
+            @unlink($file);
+        }
+    }
+
+    // Tunggu sebentar untuk memastikan file tidak terkunci
+    usleep(100000); // 0.1 detik
+
+    // Hapus directory
+    deleteDirectoryForce($tempDir);
+}
+
 // Function to merge PDFs
 function mergePDFs($pdfFiles, $outputPath)
 {
-
     // Pastikan directory writable
     $outputDir = dirname($outputPath);
     if (!is_writable($outputDir)) {
         // Fallback ke /tmp
         $outputPath = '/tmp/' . basename($outputPath);
     }
+
     // Try to use FPDI if available
     $fpdiPath = __DIR__ . '/vendor/autoload.php';
 
@@ -450,8 +496,6 @@ function mergePDFsWithCommand($pdfFiles, $outputPath)
 }
 
 // Merge all PDFs into one
-// $mergedPdfPath = __DIR__ . '/transkrip_massal_' . $tahun . '_' . $prodi . '_' . date('Ymd_His') . '.pdf';
-
 $filename = 'transkrip_massal_' . $tahun . '_' . $prodi . '_' . date('Ymd_His') . '.pdf';
 $mergedPdfPath = '/tmp/' . $filename; // Simpan di /tmp
 echo "<br><h4>Menggabungkan PDF...</h4>";
@@ -469,46 +513,54 @@ if (mergePDFs($pdfFiles, $mergedPdfPath)) {
     $downloadFilename = basename($mergedPdfPath);
     if (strpos($mergedPdfPath, '/tmp/') === 0) {
         // Jika file di /tmp, perlu proxy download
-        echo '<a href="download_transkrip.php?file=' . urlencode(basename($mergedPdfPath)) . '" download>';
+        echo '<a href="download_transkrip.php?file=' . urlencode(basename($mergedPdfPath)) . '" download class="btn btn-success" style="padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;">⬇ Download Transkrip Gabungan</a>';
     } else {
-        echo '<a href="' . basename($mergedPdfPath) . '" download>';
+        echo '<a href="' . basename($mergedPdfPath) . '" download class="btn btn-success" style="padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;">⬇ Download Transkrip Gabungan</a>';
     }
+    echo '&nbsp;&nbsp;';
+    echo '<a href="#" onclick="window.print()" class="btn btn-primary" style="padding:10px 20px; background:#007bff; color:white; text-decoration:none; border-radius:5px;">🖨 Cetak</a><br><br>';
 
-    // Provide download link
-    // echo '<a href="' . basename($mergedPdfPath) . '" target="__blank" class="btn btn-success" style="padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;" download>⬇ Download Transkrip Gabungan</a>';
-    // echo '&nbsp;&nbsp;';
-    // echo '<a href="#" onclick="window.print()" class="btn btn-primary" style="padding:10px 20px; background:#007bff; color:white; text-decoration:none; border-radius:5px;">🖨 Cetak</a><br><br>';
+    // Clean up individual PDF files DAN directory dengan fungsi baru
+    cleanupTempFiles($tempDir, $pdfFiles);
 
-    // Clean up individual PDF files
-    foreach ($pdfFiles as $file) {
-        if (file_exists($file)) {
-            unlink($file);
-        }
-    }
+    echo '<div style="color:green; font-size:12px; margin-top:10px;">✓ File temporary telah dibersihkan</div>';
 
-    // Remove temp directory
-    if (file_exists($tempDir)) {
-        rmdir($tempDir);
-    }
-
-    // Cleanup script
+    // Cleanup script untuk file gabungan di /tmp
     echo '
     <script>
-        function cleanupFile() {
-            // AJAX request to cleanup file after download
+        function cleanupMergedFile() {
+            // AJAX request to cleanup merged file
             var xhr = new XMLHttpRequest();
             xhr.open("GET", "cleanup_transkrip.php?file=' . urlencode(basename($mergedPdfPath)) . '", true);
             xhr.send();
         }
         
-        // Cleanup ketika user meninggalkan halaman atau mengklik download
+        function cleanupTempDir() {
+            // AJAX request to cleanup temp directory
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "cleanup_transkrip.php?dir=' . urlencode(basename($tempDir)) . '", true);
+            xhr.send();
+        }
+        
+        // Jalankan cleanup untuk temp directory sekarang juga
+        setTimeout(cleanupTempDir, 1000);
+        
+        // Cleanup file gabungan ketika user mengklik download
         document.querySelector(\'a[download]\').addEventListener(\'click\', function() {
-            setTimeout(cleanupFile, 5000); // Cleanup setelah 5 detik
+            setTimeout(cleanupMergedFile, 10000); // Cleanup setelah 10 detik
         });
         
+        // Cleanup saat keluar halaman
         window.addEventListener(\'beforeunload\', function() {
-            cleanupFile();
+            cleanupMergedFile();
+            cleanupTempDir();
         });
+        
+        // Auto cleanup setelah 30 detik
+        setTimeout(function() {
+            cleanupMergedFile();
+            cleanupTempDir();
+        }, 30000);
     </script>';
 } else {
     echo "<div style='color:red;'><strong>✗ Gagal menggabungkan PDF!</strong></div><br>";
@@ -528,8 +580,8 @@ if (mergePDFs($pdfFiles, $mergedPdfPath)) {
 
     echo '</div><br>';
 
-    // Tautan untuk membersihkan file
-    echo '<a href="cleanup_transkrip.php?dir=' . urlencode(basename($tempDir)) . '" style="color:red;">[Hapus file temporary]</a>';
+    // Tautan untuk membersihkan file dengan force delete
+    echo '<a href="cleanup_transkrip.php?dir=' . urlencode(basename($tempDir)) . '&force=true" style="color:red;" onclick="return confirm(\'Yakin hapus semua file temporary?\')">[Hapus file temporary]</a>';
 }
 
 // Tambahkan CSS untuk tampilan yang lebih baik

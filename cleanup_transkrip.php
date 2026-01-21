@@ -8,31 +8,53 @@ if (strpos($referer, $_SERVER['HTTP_HOST']) === false) {
     die("Akses ditolak!");
 }
 
-// Hapus file PDF gabungan
+// Fungsi untuk force delete
+function deleteDirectoryForce($dir)
+{
+    if (!file_exists($dir)) {
+        return "Directory tidak ditemukan";
+    }
+
+    // Gunakan system command untuk Linux/Docker
+    exec("rm -rf " . escapeshellarg($dir) . " 2>&1", $output, $returnCode);
+
+    if ($returnCode === 0) {
+        return "Directory berhasil dihapus";
+    } else {
+        // Coba dengan chmod dulu
+        exec("chmod -R 777 " . escapeshellarg($dir) . " 2>&1");
+        exec("rm -rf " . escapeshellarg($dir) . " 2>&1", $output, $returnCode);
+
+        if ($returnCode === 0) {
+            return "Directory berhasil dihapus setelah chmod";
+        } else {
+            return "Gagal menghapus directory. Return code: $returnCode";
+        }
+    }
+}
+
+// Hapus file PDF gabungan dari /tmp
 if (isset($_GET['file'])) {
     $file = basename($_GET['file']);
-    $filePath = __DIR__ . '/' . $file;
+    $filePath = '/tmp/' . $file;
 
     if (file_exists($filePath) && strpos($file, 'transkrip_massal_') === 0) {
-        unlink($filePath);
-        echo "File $file telah dihapus.";
+        if (unlink($filePath)) {
+            echo "File $file telah dihapus dari /tmp.";
+        } else {
+            // Force delete
+            exec("rm -f " . escapeshellarg($filePath) . " 2>&1");
+            echo "File $file telah dihapus (force).";
+        }
     }
 }
 
 // Hapus direktori temporary
 if (isset($_GET['dir'])) {
     $dir = basename($_GET['dir']);
-    $dirPath = __DIR__ . '/' . $dir;
+    $dirPath = '/tmp/' . $dir;
 
     if (file_exists($dirPath) && is_dir($dirPath) && strpos($dir, 'temp_transkrip_') === 0) {
-        // Hapus semua file dalam direktori
-        $files = glob($dirPath . '/*');
-        foreach ($files as $file) {
-            if (is_file($file)) {
-                unlink($file);
-            }
-        }
-        rmdir($dirPath);
-        echo "Direktori temporary telah dihapus.";
+        echo deleteDirectoryForce($dirPath);
     }
 }
