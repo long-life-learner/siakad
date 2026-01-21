@@ -19,6 +19,7 @@ $options->set('defaultFont', 'Times New Roman');
 // A4 size in inches
 $pageWidthIn  = 8.27;
 $pageHeightIn = 11.69;
+
 $pageWidthPt  = $pageWidthIn  * 72;
 $pageHeightPt = $pageHeightIn * 72;
 
@@ -42,12 +43,15 @@ function h($s)
 
 // Query nilai & mahasiswa
 $query = "SELECT kodemk, namamk, sks, huruf, ROUND(angka,1) as angka, 
-                 mahasiswa.nama, tempatlahir, tanggallahir, programstudi,
+                 mahasiswa.nama, tempatlahir, tanggallahir, CASE
+                        WHEN UPPER(SUBSTRING_INDEX(SUBSTRING_INDEX(programstudi, ' ', 3), ' ', -1)) = 'INDUSTRI' THEN 'Teknologi Industri'
+                        ELSE programstudi
+                     END AS programstudi,
                  nilai.akademik as ipk
           FROM nilaiakademik 
           INNER JOIN mahasiswa ON mahasiswa.nim = nilaiakademik.nim 
           INNER JOIN nilai ON nilaiakademik.nim = nilai.NIM
-          WHERE nilaiakademik.nim = ? AND kodemk != '' AND sks > 0 
+          WHERE nilaiakademik.nim = ? AND kodemk != '' AND sks > 0 AND mahasiswa.status = 'Lulus'
           ORDER BY tahunakademik, kodemk";
 
 try {
@@ -138,6 +142,13 @@ $scaleCss = ($scale < 1.0) ? 'transform: scale(' . number_format($scale, 3, '.',
 // ---------- CSS (you can edit these styles manually) ----------
 $css = "
     <style>
+       
+
+        // .footer-table {
+        //     position: absolute;
+        //     bottom: 20mm;
+        //     width: 100%;
+        // }
         /* Page: no margins so content touches left/right edges */
         @page { size: {$pageWidthMm}mm {$pageHeightMm}mm; margin: 0mm; }
         html, body { margin:0; padding:0; height:100%; }
@@ -208,8 +219,26 @@ $html .= '<table class="score-table">';
 $html .= '<tr><th style="width:15%;">Kode</th><th style="width:55%;">Mata Kuliah</th><th style="width:10%;">SKS</th><th style="width:10%;">Nilai</th><th style="width:10%;">Mutu</th></tr>';
 foreach ($leftRows as $r) {
     $html .= '<tr style="height:' . $rowHeightCss . '">';
-    $html .= '<td class="center">' . h($r['kodemk']) . '</td>';
-    $html .= '<td>' . h($r['namamk']) . '</td>';
+
+
+    if (strlen($r['kodemk']) > 7) {
+        $fontKodeSize = 'font-size:' . ($fontPt - 1) . 'pt !important;';
+    } else {
+        $fontKodeSize = $fontPt . 'pt;';
+    }
+
+    $html .= '<td style="' . $fontKodeSize . '" class="center">' . h($r['kodemk']) . '</td>';
+
+
+
+    if (strlen($r['namamk']) > 31) {
+        $fontSize = 'font-size:' . ($fontPt - 1.5) . 'pt !important;';
+    } else {
+        $fontSize = $fontPt . 'pt;';
+    }
+
+    $html .= '<td style="' . $fontSize . '">' . $r['namamk'] . '</td>';
+
     $html .= '<td class="center">' . $r['sks'] . '</td>';
     $html .= '<td class="center">' . h($r['huruf']) . '</td>';
     $html .= '<td class="center">' . $r['angka'] . '</td>';
@@ -226,8 +255,22 @@ $html .= '<table class="score-table">';
 $html .= '<tr><th style="width:15%;">Kode</th><th style="width:55%;">Mata Kuliah</th><th style="width:10%;">SKS</th><th style="width:10%;">Nilai</th><th style="width:10%;">Mutu</th></tr>';
 foreach ($rightRows as $r) {
     $html .= '<tr style="height:' . $rowHeightCss . '">';
-    $html .= '<td class="center">' . h($r['kodemk']) . '</td>';
-    $html .= '<td>' . h($r['namamk']) . '</td>';
+
+    if (strlen($r['kodemk']) > 7) {
+        $fontKodeSize = 'font-size:' . ($fontPt - 1) . 'pt !important;';
+    } else {
+        $fontKodeSize = $fontPt . 'pt;';
+    }
+
+    $html .= '<td style="' . $fontKodeSize . '" class="center">' . h($r['kodemk']) . '</td>';
+
+    if (strlen($r['namamk']) > 31) {
+        $fontSize = 'font-size:' . ($fontPt - 1.5) . 'pt !important;';
+    } else {
+        $fontSize = $fontPt . 'pt;';
+    }
+
+    $html .= '<td style="' . $fontSize . '">' . $r['namamk'] . '</td>';
     $html .= '<td class="center">' . $r['sks'] . '</td>';
     $html .= '<td class="center">' . h($r['huruf']) . '</td>';
     $html .= '<td class="center">' . $r['angka'] . '</td>';

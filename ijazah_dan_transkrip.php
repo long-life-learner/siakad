@@ -104,7 +104,14 @@ $prodi =  $stmt2->fetchAll(PDO::FETCH_ASSOC);
                                         <option value="">-- Pilih Prodi --</option>
                                         <?php
                                         // Reset hasil query untuk dipakai lagi
-                                        $prodi = $db->prepare("SELECT DISTINCT programstudi FROM mahasiswa ORDER BY programstudi");
+                                        $prodi = $db->prepare("SELECT DISTINCT
+                                            CASE
+                                                WHEN UPPER(SUBSTRING_INDEX(SUBSTRING_INDEX(programstudi, ' ', 3), ' ', -1)) = 'INDUSTRI'
+                                                    THEN 'Teknologi Industri'
+                                                ELSE programstudi
+                                            END AS programstudi
+                                        FROM mahasiswa
+                                        ORDER BY programstudi;");
                                         $prodi->execute();
                                         $prodi = $prodi->fetchAll(PDO::FETCH_ASSOC);
                                         ?>
@@ -204,9 +211,15 @@ $prodi =  $stmt2->fetchAll(PDO::FETCH_ASSOC);
                                     <select name="prodi" class="form-select" required>
                                         <option value="">-- Pilih Prodi --</option>
                                         <?php
-                                        $prodi = $db->prepare("SELECT DISTINCT programstudi FROM mahasiswa ORDER BY programstudi");
+                                        $prodi = $db->prepare("SELECT DISTINCT
+                                            CASE
+                                                WHEN UPPER(SUBSTRING_INDEX(SUBSTRING_INDEX(programstudi, ' ', 3), ' ', -1)) = 'INDUSTRI'
+                                                    THEN 'Teknologi Industri'
+                                                ELSE programstudi
+                                            END AS programstudi
+                                        FROM mahasiswa
+                                        ORDER BY programstudi;");
                                         $prodi->execute();
-                                        $prodi = $prodi->fetchAll(PDO::FETCH_ASSOC);
                                         ?>
                                         <?php foreach ($prodi as $p): ?>
                                             <option value="<?= $p['programstudi'] ?>"><?= $p['programstudi'] ?></option>
