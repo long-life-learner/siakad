@@ -366,6 +366,13 @@ if (empty($pdfFiles)) {
 // Function to merge PDFs
 function mergePDFs($pdfFiles, $outputPath)
 {
+
+    // Pastikan directory writable
+    $outputDir = dirname($outputPath);
+    if (!is_writable($outputDir)) {
+        // Fallback ke /tmp
+        $outputPath = '/tmp/' . basename($outputPath);
+    }
     // Try to use FPDI if available
     $fpdiPath = __DIR__ . '/vendor/autoload.php';
 
@@ -443,8 +450,10 @@ function mergePDFsWithCommand($pdfFiles, $outputPath)
 }
 
 // Merge all PDFs into one
-$mergedPdfPath = __DIR__ . '/transkrip_massal_' . $tahun . '_' . $prodi . '_' . date('Ymd_His') . '.pdf';
+// $mergedPdfPath = __DIR__ . '/transkrip_massal_' . $tahun . '_' . $prodi . '_' . date('Ymd_His') . '.pdf';
 
+$filename = 'transkrip_massal_' . $tahun . '_' . $prodi . '_' . date('Ymd_His') . '.pdf';
+$mergedPdfPath = '/tmp/' . $filename; // Simpan di /tmp
 echo "<br><h4>Menggabungkan PDF...</h4>";
 
 if (mergePDFs($pdfFiles, $mergedPdfPath)) {
@@ -457,8 +466,16 @@ if (mergePDFs($pdfFiles, $mergedPdfPath)) {
     echo "Ukuran: $fileSizeMB MB<br>";
     echo "Jumlah halaman: " . count($pdfFiles) . " (satu transkrip per halaman)<br><br>";
 
+    $downloadFilename = basename($mergedPdfPath);
+    if (strpos($mergedPdfPath, '/tmp/') === 0) {
+        // Jika file di /tmp, perlu proxy download
+        echo '<a href="download_transkrip.php?file=' . urlencode(basename($mergedPdfPath)) . '" download>';
+    } else {
+        echo '<a href="' . basename($mergedPdfPath) . '" download>';
+    }
+
     // Provide download link
-    echo '<a href="' . basename($mergedPdfPath) . '" target="__blank" class="btn btn-success" style="padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;" download>⬇ Download Transkrip Gabungan</a>';
+    // echo '<a href="' . basename($mergedPdfPath) . '" target="__blank" class="btn btn-success" style="padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;" download>⬇ Download Transkrip Gabungan</a>';
     // echo '&nbsp;&nbsp;';
     // echo '<a href="#" onclick="window.print()" class="btn btn-primary" style="padding:10px 20px; background:#007bff; color:white; text-decoration:none; border-radius:5px;">🖨 Cetak</a><br><br>';
 
