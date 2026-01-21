@@ -1,4 +1,5 @@
 <?php
+ob_start();
 session_start();
 require_once "config/database.php";
 require_once "dompdf/autoload.inc.php";
