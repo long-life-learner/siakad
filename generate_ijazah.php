@@ -265,13 +265,13 @@ try {
     $dompdf->loadHtml($fullHtml);
     $dompdf->setPaper('A4', 'landscape');
     $dompdf->render();
-    // $dompdf->stream("Ijazah.pdf", ["Attachment" => false]);
+    $dompdf->stream("Ijazah.pdf", ["Attachment" => false]);
 
     // Bersihkan semua buffer sebelum stream
-    while (ob_get_level()) ob_end_clean();
     header('Content-Type: application/pdf');
     header('Content-Disposition: inline; filename="' . $namaFile . '.pdf"');
     echo $dompdf->output();
+    while (ob_get_level()) ob_end_clean();
     // close DB / cleanup PDO objects
     $stmt = null;
     $db = null;
