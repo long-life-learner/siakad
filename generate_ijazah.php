@@ -265,14 +265,18 @@ try {
     $dompdf->loadHtml($fullHtml);
     $dompdf->setPaper('A4', 'landscape');
     $dompdf->render();
-    $dompdf->stream("Ijazah.pdf", ["Attachment" => false]);
-
-    // Bersihkan semua buffer sebelum stream
-    header('Content-Type: application/pdf');
-    header('Content-Disposition: inline; filename="' . $namaFile . '.pdf"');
-    echo $dompdf->output();
+    // $dompdf->stream("Ijazah.pdf", ["Attachment" => false]);
+    $dompdf->stream($namaFile . ".pdf", [
+        "Attachment" => false // false jika mau preview
+    ]);
     while (ob_get_level()) ob_end_clean();
-    // close DB / cleanup PDO objects
+
+
+    // header('Content-Type: application/pdf');
+    // header('Content-Disposition: attachment; filename="'.$namaFile.'.pdf"');
+    // header('Content-Length: ' . strlen($dompdf->output()));
+
+    echo $dompdf->output();
     $stmt = null;
     $db = null;
     exit;
