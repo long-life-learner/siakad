@@ -189,11 +189,11 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
     // ---------- CSS ----------
     $css = "
         <style>
-            @page { size: {$pageWidthMm}mm {$pageHeightMm}mm; margin: 0mm; }
+            @page { size: {$pageWidthMm}mm {$pageHeightMm}mm; margin: 0mm 5mm 0mm 5mm; }
             html, body { margin:0; padding:0; height:100%; }
             body { font-family: 'Times New Roman', serif; color:#000; -webkit-print-color-adjust: exact; }
-            .scale-wrap { {$scaleCss} }
-            .content { width: {$contentWidthMm}mm; box-sizing: border-box; padding: {$topPaddingMm}mm {$sidePaddingMm}mm 0 {$sidePaddingMm}mm; margin: 0; }
+            .scale-wrap { {$scaleCss} margin: 0 auto !important; }
+            .content { width: 100%; box-sizing: border-box; padding: {$topPaddingMm}mm 7mm 0mm 3.5mm; margin: 0; }
             .header-table { width:100%; border-collapse: collapse; font-size: 11pt; }
             .header-table td { vertical-align: top; padding-top:2px ; padding-bottom:2px; }
             .columns-table { width:100%; border-collapse: collapse; margin-top: 6px; }
@@ -504,7 +504,11 @@ function mergePDFsWithCommand($pdfFiles, $outputPath)
 
 // Merge all PDFs into one
 $filename = 'transkrip_massal_' . $tahun . '_' . $prodi . '_' . date('Ymd_His') . '.pdf';
-$mergedPdfPath = '/tmp/' . $filename; // Simpan di /tmp
+
+// Multi-platform temp folder (Windows: C:\Windows\Temp / user temp, Ubuntu: /tmp)
+$tmpBase = rtrim(sys_get_temp_dir(), '/\\');
+$mergedPdfPath = $tmpBase . DIRECTORY_SEPARATOR . $filename;
+
 echo "<br><h4>Menggabungkan PDF...</h4>";
 
 if (mergePDFs($pdfFiles, $mergedPdfPath)) {
@@ -517,15 +521,8 @@ if (mergePDFs($pdfFiles, $mergedPdfPath)) {
     echo "Ukuran: $fileSizeMB MB<br>";
     echo "Jumlah halaman: " . count($pdfFiles) . " (satu transkrip per halaman)<br><br>";
 
-    $downloadFilename = basename($mergedPdfPath);
-    if (strpos($mergedPdfPath, '/tmp/') === 0) {
-        // Jika file di /tmp, perlu proxy download
-        echo '<a href="download_transkrip.php?file=' . urlencode(basename($mergedPdfPath)) . '" download class="btn btn-success" style="padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;">⬇ Download Transkrip Gabungan</a>';
-    } else {
-        echo '<a href="' . basename($mergedPdfPath) . '" download class="btn btn-success" style="padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;">⬇ Download Transkrip Gabungan</a>';
-    }
-    echo '&nbsp;&nbsp;';
-    echo '<a href="#" onclick="window.print()" class="btn btn-primary" style="padding:10px 20px; background:#007bff; color:white; text-decoration:none; border-radius:5px;">🖨 Cetak</a><br><br>';
+    echo '<a href="download_transkrip.php?file=' . urlencode(basename($mergedPdfPath)) . '& v=' . time() . '" class="btn btn-success" style="padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;">⬇ Download Transkrip Gabungan</a>';
+
 
     // Clean up individual PDF files DAN directory dengan fungsi baru
     cleanupTempFiles($tempDir, $pdfFiles);

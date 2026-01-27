@@ -137,7 +137,14 @@ $fontPt = max(7, round($baseFontPt * ($rowMmToUse / $baseRowMm)));
 $contentWidthMm = $pageWidthMm - ($sidePaddingMm * 2);
 
 // When scaling <1, set wrapper width so the scaled content fits exact page width when transformed
-$scaleCss = ($scale < 1.0) ? 'transform: scale(' . number_format($scale, 3, '.', '') . '); transform-origin: top left; width: calc(' . $contentWidthMm . 'mm / ' . number_format($scale, 6, '.', '') . ');' : '';
+// $scaleCss = ($scale < 1.0) ? 'transform: scale(' . number_format($scale, 3, '.', '') . '); transform-origin: top center; width: calc(' . $contentWidthMm . 'mm / ' . number_format($scale, 6, '.', '') . ');' : '';
+
+$scaleCss = ($scale < 1.0)
+    ? 'position: relative; left: 50%;
+       transform: translateX(-50%) scale(' . number_format($scale, 3, '.', '') . ');
+       transform-origin: top center;
+       width: calc(' . $contentWidthMm . 'mm / ' . number_format($scale, 6, '.', '') . ');'
+    : '';
 
 // ---------- CSS (you can edit these styles manually) ----------
 $css = "
@@ -150,7 +157,8 @@ $css = "
         //     width: 100%;
         // }
         /* Page: no margins so content touches left/right edges */
-        @page { size: {$pageWidthMm}mm {$pageHeightMm}mm; margin: 0mm; }
+        @page { size: {$pageWidthMm}mm {$pageHeightMm}mm; margin: 0mm 5mm 0mm 5mm; }
+
         html, body { margin:0; padding:0; height:100%; }
         body { font-family: 'Times New Roman', serif; color:#000; -webkit-print-color-adjust: exact; }
 
@@ -158,7 +166,7 @@ $css = "
         .scale-wrap { {$scaleCss} }
 
         /* Content: apply top padding 4cm and side padding 0.5cm; width = page width - 2*sidePadding */
-        .content { width: {$contentWidthMm}mm; box-sizing: border-box; padding: {$topPaddingMm}mm {$sidePaddingMm}mm 0 {$sidePaddingMm}mm; margin: 0; }
+        .content { width: 100%; box-sizing: border-box; padding: {$topPaddingMm}mm 7mm 0mm 3.5mm; margin: 0; }
 
         /* Header (edit manually if you want) */
         .header-table { width:100%; border-collapse: collapse; font-size: 11pt; }

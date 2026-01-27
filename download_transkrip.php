@@ -1,32 +1,28 @@
 <?php
-// download_transkrip.php
 session_start();
 
 $file = $_GET['file'] ?? '';
-if (empty($file)) {
-    die("File tidak ditemukan");
+$file = basename($file); // cegah path traversal
+
+if ($file === '') {
+    http_response_code(400);
+    die("File tidak valid.");
 }
 
-// Security: hanya izinkan file transkrip
-if (!preg_match('/^transkrip_massal_.*\.pdf$/', $file)) {
-    die("File tidak diizinkan");
+$tmpBase = rtrim(sys_get_temp_dir(), '/\\');
+$fullPath = $tmpBase . DIRECTORY_SEPARATOR . $file;
+
+if (!file_exists($fullPath)) {
+    http_response_code(404);
+    die("File tidak ditemukan atau sudah dibersihkan.");
 }
 
-$filepath = '/tmp/' . $file;
-
-if (!file_exists($filepath)) {
-    die("File tidak ditemukan");
-}
-
-// Set headers untuk download
+header('Content-Description: File Transfer');
 header('Content-Type: application/pdf');
 header('Content-Disposition: attachment; filename="' . $file . '"');
-header('Content-Length: ' . filesize($filepath));
-header('Cache-Control: private, max-age=0, must-revalidate');
-header('Pragma: public');
+header('Content-Length: ' . filesize($fullPath));
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
-readfile($filepath);
-
-// Hapus file setelah didownload
-unlink($filepath);
+readfile($fullPath);
 exit;
