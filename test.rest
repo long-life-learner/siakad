@@ -1,0 +1,10 @@
+### POST
+POST http://sisfo.poltek-gt.ac.id/api/mahasiswa
+Content-Type: application/json
+
+{
+  "nama": "Budi Santoso",
+  "nim": "123456789",
+  "jurusan": "Teknik Informatika",
+  "angkatan": 2022
+}

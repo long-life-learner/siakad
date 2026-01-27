@@ -1,6 +1,13 @@
 <?php
 ob_start();
 session_start();
+set_time_limit(300); // 5 menit
+ini_set('max_execution_time', 300);
+ini_set('memory_limit', '512M');
+
+// Juga nonaktifkan output buffering untuk long process
+if (ob_get_level()) ob_end_clean();
+ob_implicit_flush(true);
 require_once "config/database.php";
 require_once "dompdf/autoload.inc.php";
 
