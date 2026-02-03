@@ -200,13 +200,18 @@ $html = '<!doctype html><html><head><meta charset="utf-8">' . $css . '</head><bo
 $html .= '<div class="scale-wrap"><div class="content">';
 
 // Header
-$html .= '<table class="header-table"><tr>';
+$html .= '<table class="header-table">
+<tr>';
 $html .= '<td style="width:100px">Nama</td>
-<td style="width:5px">:</td>
+            <td style="width:5px">:</td>
+            <td style="width:273px">' . h($mhs['nama']) . '</td>';
 
-<td style="width:240px">' . h($mhs['nama']) . '</td>';
-$html .= '<td style="width:135px">Tempat/Tanggal Lahir</td><td style="width:5px">:</td><td>' . $tgl_lahir . '</td>';
-$html .= '</tr><tr>';
+$html .= '<td style="width:135px">Tempat/Tanggal Lahir</td>
+          <td style="width:5px">:</td>
+          <td>' . $tgl_lahir . '</td>';
+$html .= '</tr>
+
+<tr>';
 $html .= '<td>NIM</td><td>:</td><td>' . h($nim) . '</td>';
 
 $html .= '<td>Tanggal Masuk</td><td>:</td><td>' . tglIndo($masuk) . '</td>';

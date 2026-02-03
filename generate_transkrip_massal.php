@@ -68,7 +68,6 @@ if (str_ends_with($prodi, 'Industri')) {
     die("Program studi tidak dikenali!");
 }
 
-
 // Get all students based on filters
 $queryMhs = "SELECT nim, nama FROM mahasiswa 
              WHERE tahunmasuk = ? AND MID(nim,3,2) = ? AND status = 'Lulus'
@@ -155,7 +154,7 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
 
     $rowsPerColNeeded = max(1, (int)ceil($total_mk / 2));
 
-    $defaultRowMm = 5.5;
+    $defaultRowMm = 5.22;
     $minRowMm = 3.0;
 
     $tableHeaderExtraMm = 8;
@@ -193,7 +192,7 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
             html, body { margin:0; padding:0; height:100%; }
             body { font-family: 'Times New Roman', serif; color:#000; -webkit-print-color-adjust: exact; }
             .scale-wrap { {$scaleCss} margin: 0 auto !important; }
-            .content { width: 100%; box-sizing: border-box; padding: {$topPaddingMm}mm 7mm 0mm 3.5mm; margin: 0; }
+            .content { width: 100%; box-sizing: border-box; padding: {$topPaddingMm}mm 3.5mm 0mm 3.5mm; margin: 0; }
             .header-table { width:100%; border-collapse: collapse; font-size: 11pt; }
             .header-table td { vertical-align: top; padding-top:2px ; padding-bottom:2px; }
             .columns-table { width:100%; border-collapse: collapse; margin-top: 6px; }
@@ -202,7 +201,7 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
             .score-table th { background: #808080; color: #fff; padding: 4px; border:1px solid #000; text-align:center; }
             .score-table td { padding: 3px 4px; border:1px solid #000; vertical-align: middle; }
             .score-table td.center { text-align:center; }
-            .footer-table { width:100%; margin-top: 6px; font-size: 11pt; border-collapse: collapse; padding: 0; }
+            .footer-table { width:100%; margin-top: 10px; font-size: 11pt; border-collapse: collapse; padding: 0; }
             * { -webkit-box-sizing: border-box; box-sizing: border-box; }
             body { -webkit-print-color-adjust: exact; }
         </style>
@@ -210,13 +209,14 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
 
     // ---------- Build HTML ----------
     $html = '<!doctype html><html><head><meta charset="utf-8">' . $css . '</head><body>';
-    $html .= '<div class="scale-wrap"><div class="content">';
+    // $html .= '<div class="scale-wrap"><div class="content">';
+    $html .= '<div ><div class="content">';
 
     // Header
     $html .= '<table class="header-table"><tr>';
     $html .= '<td style="width:100px">Nama</td>
-    <td style="width:5px">:</td>
-    <td style="width:240px">' . h($mhs['nama']) . '</td>';
+                <td style="width:5px">:</td>
+                <td style="width:275px">' . h($mhs['nama']) . '</td>';
     $html .= '<td style="width:135px">Tempat/Tanggal Lahir</td><td style="width:5px">:</td><td>' . $tgl_lahir . '</td>';
     $html .= '</tr><tr>';
     $html .= '<td>NIM</td><td>:</td><td>' . h($nim) . '</td>';
@@ -233,9 +233,9 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
     $html .= '<table class="columns-table"><tr>';
 
     // LEFT column
-    $html .= '<td class="col-td" style="width:48%; padding-right:6px;">';
+    $html .= '<td class="col-td" style="width:49%;">';
     $html .= '<table class="score-table">';
-    $html .= '<tr><th style="width:15%;">Kode</th><th style="width:55%;">Mata Kuliah</th><th style="width:10%;">SKS</th><th style="width:10%;">Nilai</th><th style="width:10%;">Mutu</th></tr>';
+    $html .= '<tr><th style="width:15%;">Kode</th><th style="width: 55%;">Mata Kuliah</th><th style="width:10%;">SKS</th><th style="width:10%;">Nilai</th><th style="width:10%;">Mutu</th></tr>';
     foreach ($leftRows as $r) {
         $html .= '<tr style="height:' . $rowHeightCss . '">';
         if (strlen($r['kodemk']) > 7) {
@@ -263,12 +263,12 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
     $html .= '</table></td>';
 
     // spacer
-    $html .= '<td style="width:2%"></td>';
+    $html .= '<td style="width:1%"></td>';
 
     // RIGHT column
-    $html .= '<td class="col-td" style="width:48%">';
+    $html .= '<td class="col-td" style="width:49%">';
     $html .= '<table class="score-table">';
-    $html .= '<tr><th style="width:15%;">Kode</th><th style="width:55%;">Mata Kuliah</th><th style="width:10%;">SKS</th><th style="width:10%;">Nilai</th><th style="width:10%;">Mutu</th></tr>';
+    $html .= '<tr><th style="width:15%;">Kode</th><th style="width: 55%;">Mata Kuliah</th><th style="width:10%;">SKS</th><th style="width:10%;">Nilai</th><th style="width:10%;">Mutu</th></tr>';
     foreach ($rightRows as $r) {
         $html .= '<tr style="height:' . $rowHeightCss . '">';
         if (strlen($r['kodemk']) > 7) {
@@ -286,7 +286,7 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
             $fontSize = $fontPt . 'pt;';
         }
 
-        $html .= '<td style="' . $fontSize . '">' . $r['namamk'] . '</td>';
+        $html .= '<td style="' . $fontSize . ';">' . $r['namamk'] . '</td>';
         $html .= '<td class="center">' . $r['sks'] . '</td>';
         $html .= '<td class="center">' . h($r['huruf']) . '</td>';
         $html .= '<td class="center">' . $r['angka'] . '</td>';
