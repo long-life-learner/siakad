@@ -71,7 +71,7 @@ if (str_ends_with($prodi, 'Industri')) {
 // Get all students based on filters
 $queryMhs = "SELECT nim, nama FROM mahasiswa 
              WHERE tahunmasuk = ? AND MID(nim,3,2) = ? AND status = 'Lulus'
-             ORDER BY nim LIMIT 2";
+             ORDER BY nim";
 $stmtMhs = $db->prepare($queryMhs);
 $stmtMhs->execute([$tahun, $prodiNum]);
 $students = $stmtMhs->fetchAll(PDO::FETCH_ASSOC);
