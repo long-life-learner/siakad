@@ -71,7 +71,7 @@ if (str_ends_with($prodi, 'Industri')) {
 // Get all students based on filters
 $queryMhs = "SELECT nim, nama FROM mahasiswa 
              WHERE tahunmasuk = ? AND MID(nim,3,2) = ? AND status = 'Lulus'
-             ORDER BY nim";
+             ORDER BY nim LIMIT 2";
 $stmtMhs = $db->prepare($queryMhs);
 $stmtMhs->execute([$tahun, $prodiNum]);
 $students = $stmtMhs->fetchAll(PDO::FETCH_ASSOC);
@@ -92,6 +92,8 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
     $options->set('isRemoteEnabled', true);
     $options->set('isHtml5ParserEnabled', true);
     $options->set('defaultFont', 'Times New Roman');
+    // $options->set('dpi', 96); // Set DPI to 96 for standard screen/print consistency
+
 
     // A4 size in inches
     $pageWidthIn  = 8.27;
@@ -248,7 +250,7 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
 
         if (strlen($r['namamk']) > 31) {
             // $shortName = substr($r['namamk'], 0, 29) . '...';
-            $fontSize = 'font-size:' . ($fontPt - 1.5) . 'pt !important;';
+            $fontSize = 'font-size:' . ($fontPt - 1) . 'pt !important;';
         } else {
             // $shortName = $r['namamk'];
             $fontSize = $fontPt . 'pt;';
@@ -280,7 +282,7 @@ function generateSingleTranskrip($db, $nim, $masuk, $lulus, $cetak, $tempDir)
         $html .= '<td style="' . $fontKodeSize . '" class="center">' . h($r['kodemk']) . '</td>';
 
         if (strlen($r['namamk']) > 31) {
-            $fontSize = 'font-size:' . ($fontPt - 1.5) . 'pt !important;';
+            $fontSize = 'font-size:' . ($fontPt - 1) . 'pt !important;';
         } else {
 
             $fontSize = $fontPt . 'pt;';
@@ -521,7 +523,11 @@ if (mergePDFs($pdfFiles, $mergedPdfPath)) {
     echo "Ukuran: $fileSizeMB MB<br>";
     echo "Jumlah halaman: " . count($pdfFiles) . " (satu transkrip per halaman)<br><br>";
 
-    echo '<a href="download_transkrip.php?file=' . urlencode(basename($mergedPdfPath)) . '& v=' . time() . '" class="btn btn-success" style="padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:5px;">⬇ Download Transkrip Gabungan</a>';
+    echo '<a href="download_transkrip.php?file=' . urlencode(basename($mergedPdfPath)) . '&mode=preview&v=' . time() . '"
+        target="_blank"
+        class="btn btn-success">
+        👁 Preview Transkrip
+        </a>';
 
 
     // Clean up individual PDF files DAN directory dengan fungsi baru
