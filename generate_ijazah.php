@@ -42,6 +42,7 @@ function indoTanggal($tgl)
 }
 
 $lulus = indoTanggal(date("Y-m-d", strtotime($lulus ?? $lulus)));
+$tahunCetak = date("Y", strtotime($cetak));
 $cetak = indoTanggal(date("Y-m-d", strtotime($cetak)));
 
 
@@ -205,7 +206,7 @@ foreach ($rows as $r) {
     // halaman depan (front)
     $front = "
         <div class='page'>
-            <div class='noijazah'>No Ijazah: {$noUrut}/PGT/{$prodiSingkat}/" . date('Y') . "</div>
+            <div class='noijazah'>No Ijazah: {$noUrut}/PGT/{$prodiSingkat}/" . $tahunCetak . "</div>
             <div class='pin'>PIN: {$r['nomor_ijazah']}</div>
 
             <div class='center line-space standar start'>Dengan ini menyatakan bahwa</div>
