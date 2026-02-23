@@ -54,23 +54,60 @@ $params = [];
 $types  = "";
 $namaFile = "Ijazah_";
 if ($mode === "massal") {
-    $query = "SELECT a.nim, nama, programstudi, tempatlahir, tanggallahir, status, tahunmasuk, a.nik as nik , a.nomor_ijazah as nomor_ijazah
+    // $query = "SELECT a.nim, nama, programstudi, tempatlahir, tanggallahir, status, tahunmasuk, a.nik as nik , a.nomor_ijazah as nomor_ijazah
+    //           FROM mahasiswa
+    //             JOIN after_graduate as a ON mahasiswa.nim = a.nim
+    //           WHERE status='Lulus' AND programstudi=? AND tahunmasuk=?
+    //           ORDER BY nama ASC";
+    $query = "SELECT a.nim, nama,
+                     CASE
+                        WHEN UPPER(SUBSTRING_INDEX(SUBSTRING_INDEX(programstudi, ' ', 3), ' ', -1)) = 'INDUSTRI'
+                        THEN 'Teknologi Industri'
+                        ELSE programstudi
+                     END AS programstudi,
+                     tempatlahir, tanggallahir, status, tahunmasuk,
+                     a.nik as nik, a.nomor_ijazah as nomor_ijazah
               FROM mahasiswa
-                JOIN after_graduate as a ON mahasiswa.nim = a.nim
-              WHERE status='Lulus' AND programstudi=? AND tahunmasuk=?
+              JOIN after_graduate as a ON mahasiswa.nim = a.nim
+              WHERE status='Lulus'
+              AND (
+                    CASE
+                        WHEN UPPER(SUBSTRING_INDEX(SUBSTRING_INDEX(programstudi, ' ', 3), ' ', -1)) = 'INDUSTRI'
+                        THEN 'Teknologi Industri'
+                        ELSE programstudi
+                    END
+                  ) = ?
+              AND tahunmasuk=?
               ORDER BY nama ASC";
+
     $params = [$prodi, $tahun];
     $types  = "ss";
     $namaFile .= $tahun . "_" . $prodi;
 } else if ($mode === "nim") {
-    $query = "SELECT a.nim, nama, programstudi, tempatlahir, tanggallahir, status, tahunmasuk, a.nik as nik , a.nomor_ijazah as nomor_ijazah
-              FROM mahasiswa JOIN after_graduate as a ON mahasiswa.nim = a.nim WHERE mahasiswa.nim=? AND status = 'Lulus'  LIMIT 1";
+    $query = "SELECT a.nim, nama,
+                     CASE
+                        WHEN UPPER(SUBSTRING_INDEX(SUBSTRING_INDEX(programstudi, ' ', 3), ' ', -1)) = 'INDUSTRI'
+                        THEN 'Teknologi Industri'
+                        ELSE programstudi
+                     END AS programstudi,
+                     tempatlahir, tanggallahir, status, tahunmasuk,
+                     a.nik as nik, a.nomor_ijazah as nomor_ijazah
+              FROM mahasiswa
+              JOIN after_graduate as a ON mahasiswa.nim = a.nim WHERE mahasiswa.nim=? AND status = 'Lulus'  LIMIT 1";
     $params = [$nim];
     $types  = "s";
     $namaFile .= $nim;
 } else if ($mode === "nama") {
-    $query = "SELECT a.nim, nama, programstudi, tempatlahir, tanggallahir, status, tahunmasuk, a.nik as nik , a.nomor_ijazah as nomor_ijazah
-              FROM mahasiswa JOIN after_graduate AS a  ON mahasiswa.nim = a.nim WHERE nama LIKE ? AND status = 'Lulus' ORDER BY nama ASC";
+    $query = "SELECT a.nim, nama,
+                     CASE
+                        WHEN UPPER(SUBSTRING_INDEX(SUBSTRING_INDEX(programstudi, ' ', 3), ' ', -1)) = 'INDUSTRI'
+                        THEN 'Teknologi Industri'
+                        ELSE programstudi
+                     END AS programstudi,
+                     tempatlahir, tanggallahir, status, tahunmasuk,
+                     a.nik as nik, a.nomor_ijazah as nomor_ijazah
+              FROM mahasiswa
+              JOIN after_graduate as a ON mahasiswa.nim = a.nim WHERE nama LIKE ? AND status = 'Lulus' ORDER BY nama ASC";
     $params = ["%" . $nama . "%"];
     $types  = "s";
     $namaFile .= preg_replace('/\s+/', '_', $nama);
